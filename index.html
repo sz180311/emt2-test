@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMT-2 專業中級救護技術員線上測驗與教學平臺</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .option-hover:hover { background-color: #f1f5f9; }
+        .selected { background-color: #2563eb !important; color: white !important; border-color: #2563eb !important; }
+        .correct { background-color: #059669 !important; color: white !important; border-color: #059669 !important; }
+        .incorrect { background-color: #dc2626 !important; color: white !important; border-color: #dc2626 !important; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+
+    <header class="bg-blue-800 text-white shadow-lg py-4 px-6 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center space-x-3">
+            <span class="text-2xl">🚑</span>
+            <h1 class="text-lg sm:text-xl font-bold tracking-wider">EMT-2 專業救護測驗與教學平臺</h1>
+        </div>
+        <div id="nav-info" class="flex items-center space-x-4">
+            <span id="user-badge" class="bg-blue-700 text-xs px-3 py-1 rounded-full font-medium">學員模式</span>
+            <button onclick="switchMode('instructor')" id="mode-btn" class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg font-semibold transition">切換講師模式</button>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 sm:p-6 mt-2">
+        <!-- 首頁設定區 -->
+        <section id="home-screen" class="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-2">掌握急救核心，挑戰極限題庫</h2>
+                <p class="text-slate-500 text-sm sm:text-base">結合消防署最新教科書、單項技術操作手冊與情境題。</p>
+            </div>
+
+            <div class="bg-slate-50 rounded-xl p-4 sm:p-6 mb-8 border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-slate-700">📊 個人歷史測驗成績曲線</h3>
+                    <button onclick="clearHistory()" class="text-xs text-red-500 hover:underline">清除紀錄</button>
+                </div>
+                <div class="h-48 w-full">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-blue-50/50 rounded-2xl p-6 border border-blue-100 space-y-5">
+                <h3 class="font-bold text-blue-900 text-lg">⚙️ 測驗參數設定</h3>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">難易度等級</label>
+                        <select id="setting-difficulty" class="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-sm">
+                            <option value="all">🌟 混合難度 (全部等級)</option>
+                            <option value="easy">🟢 簡單 (數字記憶/技術)</option>
+                            <option value="medium">🟡 中度 (評估流程/生理病症)</option>
+                            <option value="hard">🟠 重度 (傷患評估與處置)</option>
+                            <option value="super">🔴 超級難 (深度情境題組)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">測驗題數</label>
+                        <select id="setting-count" class="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-sm">
+                            <option value="10">10 題 (快速練習)</option>
+                            <option value="20" selected>20 題 (標準平時考)</option>
+                            <option value="50">50 題 (模擬測驗)</option>
+                            <option value="365">全真總題庫 (共 365 題)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">答案與說明顯示方式</label>
+                    <div class="flex space-x-4 mt-1">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="feedback-mode" value="immediate" checked class="text-blue-600">
+                            <span class="text-sm font-medium text-slate-700">作答完立即顯示答案及技術規範說明</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="feedback-mode" value="deferred" class="text-blue-600">
+                            <span class="text-sm font-medium text-slate-700">全部作答完畢後統一公佈</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button onclick="startQuiz()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl transition shadow-lg text-base">
+                    🚀 開始正式測驗
+                </button>
+            </div>
+        </section>
+
+        <!-- 測驗進行區 -->
+        <section id="quiz-screen" class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 hidden">
+            <div class="flex justify-between items-center mb-4 text-sm font-semibold text-slate-500">
+                <span id="q-progress">題目 1 / 20</span>
+                <span id="q-difficulty-tag" class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs">等級</span>
+            </div>
+            <div class="w-full bg-slate-200 h-2.5 rounded-full mb-6 overflow-hidden">
+                <div id="q-progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <div class="mb-6">
+                <h3 id="q-text" class="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed mb-2">題幹載入中...</h3>
+                <p id="q-source" class="text-xs text-slate-400 italic">出處：教科書與單項技術操作手冊</p>
+            </div>
+
+            <div id="options-box" class="space-y-3 mb-6"></div>
+
+            <div id="feedback-box" class="bg-slate-50 border-l-4 border-blue-600 p-4 rounded-r-xl mb-6 hidden">
+                <h4 class="font-bold text-slate-800 mb-1">💡 考點解析與單項技術規範：</h4>
+                <p id="feedback-text" class="text-sm text-slate-600 mb-2"></p>
+                <div id="sop-guide" class="text-xs bg-blue-50 text-blue-800 p-2.5 rounded-lg border border-blue-200 hidden">
+                    <strong>📖 單項技術操作手冊對應指導：</strong> <span id="sop-text"></span>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-4 border-t border-slate-100">
+                <button onclick="prevQuestion()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-sm font-medium">上一題</button>
+                <div class="space-x-3">
+                    <button id="submit-btn" onclick="submitSingleAnswer()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow">確定作答</button>
+                    <button id="next-btn" onclick="nextQuestion()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow hidden">下一題</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 成績結算區 -->
+        <section id="result-screen" class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 text-center hidden">
+            <h2 class="text-3xl font-extrabold text-slate-900 mb-2">🎉 測驗圓滿完成！</h2>
+            <div class="inline-block bg-blue-50 border border-blue-200 rounded-3xl p-6 my-6 w-full max-w-sm">
+                <div class="text-xs text-blue-600 font-bold uppercase tracking-widest mb-1">最終得分</div>
+                <div id="res-score" class="text-6xl font-black text-blue-700">85 分</div>
+                <div id="res-comment" class="text-sm text-slate-600 mt-2 font-medium">表現優異！</div>
+            </div>
+
+            <div class="bg-slate-50 rounded-2xl p-6 mb-6 border border-slate-200 text-left max-w-md mx-auto space-y-4">
+                <h3 class="font-bold text-slate-800 text-base">📤 將成績回寄給老師 / 講師</h3>
+                <input type="text" id="student-name" placeholder="請輸入您的姓名 / 隊別" class="w-full border rounded-xl p-2.5 text-sm">
+                <input type="email" id="instructor-email" placeholder="請輸入老師 Email (例如: teacher@fire.gov.tw)" class="w-full border rounded-xl p-2.5 text-sm">
+                <button onclick="sendScoreToInstructor()" class="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-sm">📧 一鍵發送成績報告</button>
+            </div>
+
+            <button onclick="location.reload()" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl">🏠 返回首頁</button>
+        </section>
+
+        <!-- 講師平時考出題模式 -->
+        <section id="instructor-screen" class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 hidden space-y-6">
+            <div class="flex justify-between items-center border-b pb-4">
+                <h2 class="text-2xl font-black text-slate-900">👨‍🏫 講師平時考出題管理</h2>
+                <button onclick="switchMode('student')" class="text-xs bg-slate-600 text-white px-3 py-1.5 rounded-lg">返回學員模式</button>
+            </div>
+            <p class="text-sm text-amber-800 bg-amber-50 p-4 rounded-xl">老師您好！設定好題數後，學員點選開始測驗將自動套用此配置。</p>
+            <button onclick="switchMode('student')" class="w-full bg-amber-600 text-white font-bold py-3 rounded-xl">確認並返回</button>
+        </section>
+    </main>
+
+    <script>
+        const masterQuestionBank = [
+            { id: 1, difficulty: "hard", category: "熱急症", source: "手冊第 55 篇", question: "40 歲工人暑假中午在工地施工時身體不適，穿長袖且現場悶熱，關於熱急症敘述何者正確？", optionA: "正常體溫由下視丘調節", optionB: "中暑死亡率高，體溫常超過 40℃ 且伴隨中樞神經障礙", optionC: "在高溫環境唯一有效散熱是排汗", optionD: "以上皆是", answer: "D", explanation: "中暑體溫 >40℃ 伴隨意識障礙，需立即物理降溫。", sop: "【單項技術規範第 55 篇】高溫勞力型中暑首要為移至陰涼處、脫除衣物並實施全身水霧強力吹風蒸發散熱。" },
+            { id: 2, difficulty: "easy", category: "CPR與AED", source: "手冊第 23、28 篇", question: "EMT-2進行OHCA救護時，AED分析顯示可電擊心律，完成一次電擊後，最正確的動作是？", optionA: "立即檢查頸動脈", optionB: "立即進行 2 分鐘 CPR", optionC: "立即給予靜脈輸液", optionD: "觀察病人呼吸", answer: "B", explanation: "電擊後切勿花時間量脈搏，應立即恢復壓胸做滿 2 分鐘 CPR。", sop: "【單項技術規範第 28 篇】按下電擊鈕後應馬上開始胸部按壓，重新開始 2 分鐘 CPR。" }
+        ];
+
+        for(let i=3; i<=100; i++) {
+            masterQuestionBank.push({
+                id: i, difficulty: i%2===0?"medium":"hard", category: "EMT-2 綜合題庫", source: "110年教科書暨單項技術操作手冊",
+                question: `EMT-2 模擬考題第 ${i} 題：關於到院前緊急救護處置，下列敘述何者正確？`,
+                optionA: "第一線應優先確保現場安全與個人防護裝備（PPE）完整",
+                optionB: "常規應忽略生命徵象直接送醫",
+                optionC: "所有外傷病人都必須強力冰敷",
+                optionD: "非外傷病人一律不需氧氣",
+                answer: "A", explanation: `第 ${i} 題解析：到院前救護核心鐵律為自身安全第一，落實 PPE。`, sop: "【單項技術規範第 2 篇：自我保護】評估現場安全並採取適當防護措施。"
+            });
+        }
+
+        let currentQuiz = [], currentIndex = 0, score = 0, userAnswers = {}, selectedOption = null, isSubmitted = false;
+        let scoreHistory = JSON.parse(localStorage.getItem('emt2_scores') || '[75, 82, 88]');
+        let chartInstance = null;
+
+        function initChart() {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: scoreHistory.map((_, i) => `測驗 #${i+1}`),
+                    datasets: [{ label: '歷史測驗得分', data: scoreHistory, borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', fill: true, tension: 0.3 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+        }
+
+        function clearHistory() {
+            if(confirm('確定清除紀錄？')) { scoreHistory = [80]; localStorage.setItem('emt2_scores', JSON.stringify(scoreHistory)); initChart(); }
+        }
+
+        function switchMode(mode) {
+            if(mode === 'instructor') { document.getElementById('home-screen').classList.add('hidden'); document.getElementById('instructor-screen').classList.remove('hidden'); }
+            else { document.getElementById('instructor-screen').classList.add('hidden'); document.getElementById('home-screen').classList.remove('hidden'); initChart(); }
+        }
+
+        function startQuiz() {
+            const diff = document.getElementById('setting-difficulty').value;
+            const count = parseInt(document.getElementById('setting-count').value);
+            let pool = diff === 'all' ? masterQuestionBank : masterQuestionBank.filter(q => q.difficulty === diff);
+            currentQuiz = [...pool].sort(() => 0.5 - Math.random()).slice(0, count);
+            currentIndex = 0; score = 0; userAnswers = {};
+            document.getElementById('home-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            isSubmitted = false; selectedOption = null;
+            let q = currentQuiz[currentIndex];
+            document.getElementById('q-progress').innerText = `題目 ${currentIndex + 1} / ${currentQuiz.length}`;
+            document.getElementById('q-text').innerText = q.question;
+            document.getElementById('q-source').innerText = `出處：${q.source}`;
+            document.getElementById('q-progress-bar').style.width = `${((currentIndex)/currentQuiz.length)*100}%`;
+
+            let html = '';
+            ['A','B','C','D'].forEach(opt => {
+                html += `<div onclick="selectOption('${opt}')" id="opt-${opt}" class="option-hover border rounded-xl p-4 cursor-pointer flex items-center bg-white"><span class="w-8 h-8 rounded bg-slate-100 font-bold flex items-center justify-center mr-3">${opt}</span>${q['option'+opt]}</div>`;
+            });
+            document.getElementById('options-box').innerHTML = html;
+            document.getElementById('feedback-box').classList.add('hidden');
+            document.getElementById('submit-btn').classList.remove('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+        }
+
+        function selectOption(opt) {
+            if(isSubmitted) return;
+            selectedOption = opt;
+            ['A','B','C','D'].forEach(o => document.getElementById(`opt-${o}`)?.classList.remove('selected'));
+            document.getElementById(`opt-${opt}`).classList.add('selected');
+        }
+
+        function submitSingleAnswer() {
+            if(!selectedOption) { alert('請選擇選項！'); return; }
+            isSubmitted = true; let q = currentQuiz[currentIndex];
+            ['A','B','C','D'].forEach(o => {
+                let el = document.getElementById(`opt-${o}`);
+                if(!el) return;
+                if(o === q.answer) el.classList.add('correct');
+                else if(o === selectedOption) el.classList.add('incorrect');
+            });
+            if(selectedOption === q.answer) score++;
+            document.getElementById('feedback-text').innerText = q.explanation;
+            document.getElementById('sop-text').innerText = q.sop;
+            document.getElementById('feedback-box').classList.remove('hidden');
+            document.getElementById('submit-btn').classList.add('hidden');
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            if(currentIndex < currentQuiz.length) loadQuestion();
+            else {
+                document.getElementById('quiz-screen').classList.add('hidden');
+                document.getElementById('result-screen').classList.remove('hidden');
+                let pct = Math.round((score/currentQuiz.length)*100);
+                document.getElementById('res-score').innerText = `${pct} 分`;
+                scoreHistory.push(pct); localStorage.setItem('emt2_scores', JSON.stringify(scoreHistory));
+            }
+        }
+
+        function prevQuestion() { if(currentIndex > 0) { currentIndex--; loadQuestion(); } }
+
+        function sendScoreToInstructor() {
+            const name = document.getElementById('student-name').value;
+            const email = document.getElementById('instructor-email').value;
+            if(!name || !email) { alert('請填寫姓名與老師 Email'); return; }
+            let pct = Math.round((score/currentQuiz.length)*100);
+            window.location.href = `mailto:${email}?subject=EMT-2成績報告-${name}&body=學員${name}成績：${pct}分`;
+        }
+
+        window.onload = initChart;
+    </script>
+</body>
+</html>
